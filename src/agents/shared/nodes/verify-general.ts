@@ -42,24 +42,24 @@ type UrlContents = {
 };
 
 async function getUrlContentsFunc(url: string): Promise<UrlContents> {
-  const loader = new FireCrawlLoader({
-    url,
-    mode: "scrape",
-    params: {
-      formats: ["markdown", "screenshot"],
-    },
-  });
-  const docs = await loader.load();
+  // const loader = new FireCrawlLoader({
+  //   url,
+  //   mode: "scrape",
+  //   params: {
+  //     formats: ["markdown", "screenshot"],
+  //   },
+  // });
+  // const docs = await loader.load();
 
-  const docsText = docs.map((d) => d.pageContent).join("\n");
-  if (docsText.length) {
-    return {
-      content: docsText,
-      imageUrls: docs.flatMap(
-        (d) => getImagesFromFireCrawlMetadata(d.metadata) || [],
-      ),
-    };
-  }
+  // const docsText = docs.map((d) => d.pageContent).join("\n");
+  // if (docsText.length) {
+  //   return {
+  //     content: docsText,
+  //     imageUrls: docs.flatMap(
+  //       (d) => getImagesFromFireCrawlMetadata(d.metadata) || [],
+  //     ),
+  //   };
+  // }
 
   const text = await getPageText(url);
   if (text) {

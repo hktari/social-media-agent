@@ -135,12 +135,12 @@ export async function humanNode<
 
   const postArgs = state.complexPost
     ? {
-        main_post: state.complexPost.main_post,
-        reply_post: state.complexPost.reply_post,
-      }
+      main_post: state.complexPost.main_post,
+      reply_post: state.complexPost.reply_post,
+    }
     : {
-        post: state.post,
-      };
+      post: state.post,
+    };
 
   const interruptValue: HumanInterrupt = {
     action_request: {
@@ -172,9 +172,13 @@ export async function humanNode<
   // Save ALL links used to generate this post so that they are not used to generate future posts (duplicates).
   await saveUsedUrls([...(state.relevantLinks ?? []), ...state.links], config);
 
+  console.log("INTERRUPT VALUE", JSON.stringify(interruptValue));
+
   const response = interrupt<HumanInterrupt[], HumanResponse[]>([
     interruptValue,
   ])[0];
+
+  console.log("RESPONSE", JSON.stringify(response));
 
   if (!["edit", "ignore", "accept", "response"].includes(response.type)) {
     throw new Error(
@@ -243,9 +247,9 @@ export async function humanNode<
   const complexPost =
     castArgs.main_post && castArgs.reply_post
       ? {
-          main_post: castArgs.main_post,
-          reply_post: castArgs.reply_post,
-        }
+        main_post: castArgs.main_post,
+        reply_post: castArgs.reply_post,
+      }
       : undefined;
   if (!post && !complexPost) {
     throw new Error(
@@ -260,8 +264,8 @@ export async function humanNode<
     if (!postDate) {
       throw new Error(
         "Invalid date provided.\n\n" +
-          "Expected format: 'MM/dd/yyyy hh:mm a z' or 'P1'/'P2'/'P3' or leave empty to post now.\n\n" +
-          `Received: '${postDateString}'`,
+        "Expected format: 'MM/dd/yyyy hh:mm a z' or 'P1'/'P2'/'P3' or leave empty to post now.\n\n" +
+        `Received: '${postDateString}'`,
       );
     }
   }

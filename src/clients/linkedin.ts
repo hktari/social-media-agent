@@ -318,6 +318,7 @@ export class LinkedInClient {
       apiKey: process.env.ARCADE_API_KEY,
     });
     const scopes = LinkedInClient.getScopes(fields?.postToOrganization);
+    console.log("Starting authorization for user ID: ", linkedInUserId);
     const authRes = await arcade.auth.start(linkedInUserId, "linkedin", {
       scopes,
     });
@@ -327,6 +328,8 @@ export class LinkedInClient {
         "Authorization not completed for user ID: " + linkedInUserId,
       );
     }
+
+    console.log("Finished authorization");
 
     return new LinkedInClient({
       accessToken: authRes.context.token,

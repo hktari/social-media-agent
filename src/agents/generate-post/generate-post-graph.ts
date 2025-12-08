@@ -70,11 +70,7 @@ async function condenseOrHumanConditionalEdge(
     return "condensePost";
   }
 
-  const isTextOnlyMode = isTextOnly(config);
-  if (isTextOnlyMode) {
-    return routeToCuratedInterruptOrContinue(state, config);
-  }
-  return "findAndGenerateImagesSubGraph";
+  return "humanNode";
 }
 
 /**
@@ -150,8 +146,6 @@ async function routeToCuratedInterruptOrContinue(
 
     return END;
   }
-
-  return "humanNode";
 }
 
 const generatePostBuilder = new StateGraph(
@@ -174,8 +168,6 @@ const generatePostBuilder = new StateGraph(
   .addNode("rewritePost", rewritePost<GeneratePostState, GeneratePostUpdate>)
   // Generates a report on the content.
   .addNode("generateContentReport", generateContentReport)
-  // Finds images in the content.
-  .addNode("findAndGenerateImagesSubGraph", findAndGenerateImagesGraph)
   // Updated the scheduled date from the natural language response from the user.
   .addNode("updateScheduleDate", updateScheduledDate)
   // Rewrite the post splitting the URL from the main body of the tweet
@@ -202,7 +194,6 @@ const generatePostBuilder = new StateGraph(
   // and if so, condense it. Otherwise, route to the human node.
   .addConditionalEdges("generatePost", condenseOrHumanConditionalEdge, [
     "condensePost",
-    "findAndGenerateImagesSubGraph",
     "humanNode",
     END,
   ])
@@ -211,17 +202,9 @@ const generatePostBuilder = new StateGraph(
   // has been generated because the image validator requires the post content.
   .addConditionalEdges("condensePost", condenseOrHumanConditionalEdge, [
     "condensePost",
-    "findAndGenerateImagesSubGraph",
     "humanNode",
     END,
   ])
-
-  // After finding images, we are done and can interrupt for the human to respond.
-  .addConditionalEdges(
-    "findAndGenerateImagesSubGraph",
-    routeToCuratedInterruptOrContinue,
-    ["humanNode", END],
-  )
 
   // Always route back to `humanNode` if the post was re-written or date was updated.
   .addEdge("rewritePost", "humanNode")

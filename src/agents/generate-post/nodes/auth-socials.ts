@@ -67,6 +67,8 @@ Once done, please 'accept' this interrupt event.`;
     interruptEvent,
   ])[0];
 
+  console.log(JSON.stringify(interruptRes));
+
   if (interruptRes.type === "ignore") {
     // Throw an error to end the graph.
     throw new Error("Authorization denied by user.");
