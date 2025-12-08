@@ -7,11 +7,34 @@ import {
 } from "../src/agents/generate-post/constants.js";
 
 /**
- * Generate a post based on a LangChain blog post.
- * This may be modified to generate posts for other content.
+ * Generate a post based on provided URLs.
+ * Accepts comma-separated URLs as command line arguments.
  */
 async function invokeGraph() {
-  const link = "https://github.com/rguthaa/genai-usecases/tree/main";
+  // Get URLs from command line arguments
+  const args = process.argv.slice(2);
+  if (args.length === 0) {
+    console.error("Please provide at least one URL as a command line argument.");
+    console.error("Usage: yarn generate_post \"url1,url2,url3\" or yarn generate_post url1 url2 url3");
+    process.exit(1);
+  }
+
+  // Parse URLs - support both comma-separated and space-separated arguments
+  let links: string[];
+  if (args.length === 1 && args[0].includes(',')) {
+    // Comma-separated URLs
+    links = args[0].split(',').map(url => url.trim()).filter(url => url.length > 0);
+  } else {
+    // Space-separated URLs
+    links = args;
+  }
+
+  if (links.length === 0) {
+    console.error("No valid URLs provided.");
+    process.exit(1);
+  }
+
+  console.log(`Generating post for URLs: ${links.join(', ')}`);
 
   const client = new Client({
     apiUrl: process.env.LANGGRAPH_API_URL || "http://localhost:54367",
@@ -20,7 +43,7 @@ async function invokeGraph() {
   const { thread_id } = await client.threads.create();
   await client.runs.create(thread_id, "generate_post", {
     input: {
-      links: [link],
+      links,
     },
     config: {
       configurable: {
