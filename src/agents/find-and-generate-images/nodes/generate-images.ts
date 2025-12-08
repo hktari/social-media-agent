@@ -178,7 +178,7 @@ const STYLE_VARIATIONS = [
 export async function generateImageWithNanoBananaPro(
   postContent: string,
   imageUrls: string[],
-  variationIndex: number = 0,
+  variationIndex = 0,
 ): Promise<{ data: string; mimeType: string }> {
   const client = (() => {
     if (!process.env.GOOGLE_VERTEX_AI_WEB_CREDENTIALS) {

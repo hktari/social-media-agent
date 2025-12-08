@@ -408,7 +408,7 @@ function getNextAvailableDate({
   return candidate;
 }
 
-function validateScheduleDate(date: Date, baseDate: Date): boolean {
+function _validateScheduleDate(date: Date, baseDate: Date): boolean {
   const afterSeconds = getAfterSeconds(date, baseDate);
   return validateAfterSeconds(afterSeconds);
 }
@@ -537,7 +537,7 @@ interface FindAvailableBasicDateParams {
   takenScheduleDates: TakenScheduleDates;
 }
 
-async function findAvailableBasicDates({
+async function _findAvailableBasicDates({
   baseDate,
   config,
   priority,
@@ -697,13 +697,13 @@ Run ID: ${config.configurable?.run_id || "No run ID found"}
   return nextAvailDate;
 }
 
-const isRepurposedPriority = (
+const _isRepurposedPriority = (
   priority: DateType,
 ): priority is "r1" | "r2" | "r3" => {
   return typeof priority === "string" && ["r1", "r2", "r3"].includes(priority);
 };
 
-const isBasicPriority = (
+const _isBasicPriority = (
   priority: DateType,
 ): priority is "p1" | "p2" | "p3" => {
   return typeof priority === "string" && ["p1", "p2", "p3"].includes(priority);
@@ -731,7 +731,13 @@ export async function getScheduledDateSeconds(
 export async function getScheduledDateSeconds(
   args: GetScheduledBasicDateArgs | GetScheduledRepurposeDateArgs,
 ): Promise<number | number[]> {
-  const { scheduleDate, config, baseDate, numberOfDates, numWeeksBetween } = {
+  const {
+    scheduleDate,
+    config: _config,
+    baseDate,
+    numberOfDates: _numberOfDates,
+    numWeeksBetween: _numWeeksBetween,
+  } = {
     baseDate: new Date(),
     numberOfDates: undefined,
     numWeeksBetween: undefined,

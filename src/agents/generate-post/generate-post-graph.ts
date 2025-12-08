@@ -13,14 +13,14 @@ import {
 import { generateContentReport } from "./nodes/generate-report/index.js";
 import { generatePost } from "./nodes/generate-post/index.js";
 import { condensePost } from "./nodes/condense-post.js";
-import { removeUrls, skipUsedUrlsCheck } from "../utils.js";
+import { skipUsedUrlsCheck } from "../utils.js";
 import { verifyLinksGraph } from "../verify-links/verify-links-graph.js";
 import { authSocialsPassthrough } from "./nodes/auth-socials.js";
-import { updateScheduledDate } from "../shared/nodes/update-scheduled-date.js";
+// import { updateScheduledDate } from "../shared/nodes/update-scheduled-date.js";
 import { getSavedUrls } from "../shared/stores/post-subject-urls.js";
-import { humanNode } from "../shared/nodes/generate-post/human-node.js";
+// import { humanNode } from "../shared/nodes/generate-post/human-node.js";
 import { schedulePost } from "../shared/nodes/generate-post/schedule-post.js";
-import { rewritePost } from "../shared/nodes/generate-post/rewrite-post.js";
+// import { rewritePost } from "../shared/nodes/generate-post/rewrite-post.js";
 
 function routeAfterGeneratingReport(
   state: GeneratePostState,
@@ -31,35 +31,21 @@ function routeAfterGeneratingReport(
   return END;
 }
 
-function rewriteOrEndConditionalEdge(
-  state: GeneratePostState,
-):
-  | "rewritePost"
-  | "schedulePost"
-  | "updateScheduleDate"
-  | "humanNode"
-  | typeof END {
-  if (state.next) {
-    if (state.next === "unknownResponse") {
-      // If the user's response is unknown, we should route back to the human node.
-      return "humanNode";
-    }
-    return state.next;
-  }
-  return END;
-}
+// async function _findAvailableBasicDates({}) {
+//   // implementation not provided
+// }
 
-async function condenseOrHumanConditionalEdge(
-  state: GeneratePostState,
-  config: LangGraphRunnableConfig,
-): Promise<"condensePost" | "humanNode"> {
-  const cleanedPost = removeUrls(state.post || "");
-  if (cleanedPost.length > 280 && state.condenseCount <= 3) {
-    return "condensePost";
-  }
-
-  return "humanNode";
-}
+// async function condenseOrHumanConditionalEdge(
+//   state: GeneratePostState,
+//   config: LangGraphRunnableConfig,
+// ): Promise<"condensePost" | "humanNode"> {
+//   const cleanedPost = removeUrls(state.post || "");
+//   if (cleanedPost.length > 280 && state.condenseCount <= 3) {
+//     return "condensePost";
+//   }
+//
+//   return "humanNode";
+// }
 
 /**
  * Checks if any of the URLs in the array are already stored in the post subject URLs store.

@@ -88,7 +88,7 @@ export function getNextSaturdayDate(hour = 12, minute = 0): Date {
   return toZonedTime(saturdayWithTime, "America/Los_Angeles");
 }
 
-export function getInAMinuteDate(minutes: number = 1): Date {
+export function getInAMinuteDate(minutes = 1): Date {
   const now = new Date();
   return new Date(now.getTime() + minutes * 60000);
 }
