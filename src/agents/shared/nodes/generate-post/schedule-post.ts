@@ -93,19 +93,23 @@ export async function schedulePost<
     apiKey: process.env.LANGCHAIN_API_KEY,
   });
 
+  console.log("Scheduling post...");
+
   let afterSeconds: number | undefined;
-  if (state.scheduleDate) {
-    afterSeconds = await getScheduledDateSeconds({
-      scheduleDate: state.scheduleDate,
-      config,
-    });
-  }
+  // NOTE: disabled scheduling
+  // if (state.scheduleDate) {
+  //   afterSeconds = await getScheduledDateSeconds({
+  //     scheduleDate: state.scheduleDate,
+  //     config,
+  //   });
+  // }
 
   let runId: string | undefined;
   let threadId: string | undefined;
   try {
     const thread = await client.threads.create();
     threadId = thread.thread_id;
+    console.log("Creating upload_post run...");
     const run = await client.runs.create(thread.thread_id, "upload_post", {
       input: {
         post: state.post,
@@ -121,6 +125,7 @@ export async function schedulePost<
       ...(afterSeconds ? { afterSeconds } : {}),
     });
     runId = run.run_id;
+    console.log("Successfully created upload_post run", { runId, threadId });
   } catch (e) {
     console.error("Failed to create upload_post run", e);
     throw e;

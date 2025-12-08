@@ -3,12 +3,10 @@ import { GeneratePostAnnotation } from "../../generate-post-state.js";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { GENERATE_POST_PROMPT } from "./prompts.js";
 import { formatPrompt, parseGeneration } from "./utils.js";
-import { ALLOWED_TIMES } from "../../constants.js";
 import {
   getReflectionsPrompt,
   REFLECTIONS_PROMPT,
 } from "../../../../utils/reflections.js";
-import { getNextSaturdayDate } from "../../../../utils/date.js";
 
 export async function generatePost(
   state: typeof GeneratePostAnnotation.State,
@@ -49,16 +47,8 @@ export async function generatePost(
     },
   ]);
 
-  // Randomly select a time from the allowed times
-  const [postHour, postMinute] = ALLOWED_TIMES[
-    Math.floor(Math.random() * ALLOWED_TIMES.length)
-  ]
-    .split(" ")[0]
-    .split(":");
-  const postDate = getNextSaturdayDate(Number(postHour), Number(postMinute));
-
   return {
     post: parseGeneration(postResponse.content as string),
-    scheduleDate: postDate,
+    scheduleDate: undefined,
   };
 }

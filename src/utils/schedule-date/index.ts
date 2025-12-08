@@ -747,65 +747,6 @@ export async function getScheduledDateSeconds(
     return afterSeconds;
   }
 
-  const takenScheduleDates = await getTakenScheduleDates(config);
-
-  if (
-    isRepurposedPriority(scheduleDate) &&
-    numberOfDates !== undefined &&
-    numWeeksBetween !== undefined
-  ) {
-    const scheduleDates = findAvailableRepurposeDates({
-      repurposedPriority: scheduleDate,
-      baseDate,
-      numberOfDates,
-      takenDates: takenScheduleDates,
-      numWeeksBetween,
-    });
-
-    const isValidDate = scheduleDates.every((d) =>
-      validateScheduleDate(d, baseDate),
-    );
-    if (!isValidDate) {
-      throw new Error(`FAILED TO SCHEDULE POST
-  
-  Priority: ${scheduleDate}
-  Schedule dates: ${scheduleDates.map((d) => format(d, "MM/dd/yyyy hh:mm a z")).join(", ")}
-  Base date: ${format(baseDate, "MM/dd/yyyy hh:mm a z")}`);
-    }
-
-    takenScheduleDates[scheduleDate].push(...scheduleDates);
-    await putTakenScheduleDates(takenScheduleDates, config);
-    return scheduleDates.map((d) => getAfterSeconds(d, baseDate));
-  } else if (
-    isRepurposedPriority(scheduleDate) &&
-    numberOfDates === undefined
-  ) {
-    throw new Error(
-      "Must provide numberOfDates when scheduleDate is a repurposed priority",
-    );
-  }
-
-  if (isBasicPriority(scheduleDate)) {
-    const nextAvailDate = await findAvailableBasicDates({
-      baseDate,
-      config,
-      priority: scheduleDate,
-      takenScheduleDates,
-    });
-    const isValidDate = validateScheduleDate(nextAvailDate, baseDate);
-    if (!isValidDate) {
-      throw new Error(`FAILED TO SCHEDULE POST
-  
-  Priority: ${scheduleDate}
-  Schedule date: ${format(nextAvailDate, "MM/dd/yyyy hh:mm a z")}
-  Base date: ${format(baseDate, "MM/dd/yyyy hh:mm a z")}`);
-    }
-
-    takenScheduleDates[scheduleDate].push(nextAvailDate);
-    await putTakenScheduleDates(takenScheduleDates, config);
-    return getAfterSeconds(nextAvailDate, baseDate);
-  }
-
   throw new Error(`INVALID SCHEDULE DATE: "${scheduleDate}"
     
 Must be one of: "r1", "r2", "r3", "p1", "p2", "p3", or a valid date object.

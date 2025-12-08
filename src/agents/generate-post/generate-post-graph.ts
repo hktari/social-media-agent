@@ -13,23 +13,14 @@ import {
 import { generateContentReport } from "./nodes/generate-report/index.js";
 import { generatePost } from "./nodes/generate-post/index.js";
 import { condensePost } from "./nodes/condense-post.js";
-import {
-  isTextOnly,
-  removeUrls,
-  shouldPostToLinkedInOrg,
-  skipUsedUrlsCheck,
-} from "../utils.js";
+import { removeUrls, skipUsedUrlsCheck } from "../utils.js";
 import { verifyLinksGraph } from "../verify-links/verify-links-graph.js";
 import { authSocialsPassthrough } from "./nodes/auth-socials.js";
-import { findAndGenerateImagesGraph } from "../find-and-generate-images/find-and-generate-images-graph.js";
 import { updateScheduledDate } from "../shared/nodes/update-scheduled-date.js";
 import { getSavedUrls } from "../shared/stores/post-subject-urls.js";
 import { humanNode } from "../shared/nodes/generate-post/human-node.js";
 import { schedulePost } from "../shared/nodes/generate-post/schedule-post.js";
 import { rewritePost } from "../shared/nodes/generate-post/rewrite-post.js";
-import { Client } from "@langchain/langgraph-sdk";
-import { POST_TO_LINKEDIN_ORGANIZATION } from "./constants.js";
-import { rewritePostWithSplitUrl } from "./nodes/rewrite-with-split-url.js";
 
 function routeAfterGeneratingReport(
   state: GeneratePostState,
@@ -47,7 +38,6 @@ function rewriteOrEndConditionalEdge(
   | "schedulePost"
   | "updateScheduleDate"
   | "humanNode"
-  | "rewriteWithSplitUrl"
   | typeof END {
   if (state.next) {
     if (state.next === "unknownResponse") {
@@ -62,9 +52,7 @@ function rewriteOrEndConditionalEdge(
 async function condenseOrHumanConditionalEdge(
   state: GeneratePostState,
   config: LangGraphRunnableConfig,
-): Promise<
-  "condensePost" | "humanNode" | "findAndGenerateImagesSubGraph" | typeof END
-> {
+): Promise<"condensePost" | "humanNode"> {
   const cleanedPost = removeUrls(state.post || "");
   if (cleanedPost.length > 280 && state.condenseCount <= 3) {
     return "condensePost";
@@ -118,36 +106,6 @@ async function generateReportOrEndConditionalEdge(
   return "generateContentReport";
 }
 
-/**
- * If the 'origin' is set to 'curate-data' we need to route to a new graph 'curated_data_interrupt'
- * for the interrupt, so that users can separate curated posts from posts ingested from Slack in the
- * Agent Inbox.
- */
-async function routeToCuratedInterruptOrContinue(
-  state: GeneratePostState,
-  config: LangGraphRunnableConfig,
-): Promise<"humanNode" | typeof END> {
-  if (config.configurable?.origin === "curate-data") {
-    const postToLinkedInOrg = shouldPostToLinkedInOrg(config);
-    const client = new Client({
-      apiUrl: process.env.LANGGRAPH_API_URL,
-      apiKey: process.env.LANGCHAIN_API_KEY,
-    });
-
-    const { thread_id } = await client.threads.create();
-    await client.runs.create(thread_id, "curated_post_interrupt", {
-      input: state,
-      config: {
-        configurable: {
-          [POST_TO_LINKEDIN_ORGANIZATION]: postToLinkedInOrg,
-        },
-      },
-    });
-
-    return END;
-  }
-}
-
 const generatePostBuilder = new StateGraph(
   GeneratePostAnnotation,
   GeneratePostConfigurableAnnotation,
@@ -161,17 +119,11 @@ const generatePostBuilder = new StateGraph(
   // Attempt to condense the post if it's too long.
   .addNode("condensePost", condensePost)
   // Interrupts the node for human in the loop.
-  .addNode("humanNode", humanNode<GeneratePostState, GeneratePostUpdate>)
+  // .addNode("humanNode", humanNode<GeneratePostState, GeneratePostUpdate>)
   // Schedules the post for Twitter/LinkedIn.
   .addNode("schedulePost", schedulePost<GeneratePostState, GeneratePostUpdate>)
-  // Rewrite a post based on the user's response.
-  .addNode("rewritePost", rewritePost<GeneratePostState, GeneratePostUpdate>)
   // Generates a report on the content.
   .addNode("generateContentReport", generateContentReport)
-  // Updated the scheduled date from the natural language response from the user.
-  .addNode("updateScheduleDate", updateScheduledDate)
-  // Rewrite the post splitting the URL from the main body of the tweet
-  .addNode("rewriteWithSplitUrl", rewritePostWithSplitUrl)
 
   // Start node
   .addEdge(START, "authSocialsPassthrough")
@@ -189,38 +141,30 @@ const generatePostBuilder = new StateGraph(
     "generatePost",
     END,
   ])
+  .addEdge("generatePost", "condensePost")
+  .addEdge("condensePost", "schedulePost")
 
-  // After generating the post for the first time, check if it's too long,
-  // and if so, condense it. Otherwise, route to the human node.
-  .addConditionalEdges("generatePost", condenseOrHumanConditionalEdge, [
-    "condensePost",
-    "humanNode",
-    END,
-  ])
-  // After condensing the post, we should verify again that the content is below the character limit.
-  // Once the post is below the character limit, we can find & filter images. This needs to happen after the post
-  // has been generated because the image validator requires the post content.
-  .addConditionalEdges("condensePost", condenseOrHumanConditionalEdge, [
-    "condensePost",
-    "humanNode",
-    END,
-  ])
+  // // After generating the post for the first time, check if it's too long,
+  // // and if so, condense it. Otherwise, route to the human node.
+  // .addConditionalEdges("generatePost", condenseOrHumanConditionalEdge, [
+  //   "condensePost",
+  //   "humanNode",
+  //   END,
+  // ])
+  // // After condensing the post, we should verify again that the content is below the character limit.
+  // // Once the post is below the character limit, we can find & filter images. This needs to happen after the post
+  // // has been generated because the image validator requires the post content.
+  // // .addConditionalEdges("condensePost", condenseOrHumanConditionalEdge, [
+  // //   "condensePost",
+  // //   "humanNode",
+  // //   END,
+  // // ])
 
-  // Always route back to `humanNode` if the post was re-written or date was updated.
-  .addEdge("rewritePost", "humanNode")
-  .addEdge("updateScheduleDate", "humanNode")
-  .addEdge("rewriteWithSplitUrl", "humanNode")
-
-  // If the schedule post is successful, end the graph.
-  .addConditionalEdges("humanNode", rewriteOrEndConditionalEdge, [
-    "rewritePost",
-    "schedulePost",
-    "updateScheduleDate",
-    "humanNode",
-    "rewriteWithSplitUrl",
-    END,
-  ])
-  // Always end after scheduling the post.
+  // .addEdge("condensePost", "generatePost")
+  // .addEdge("condensePost", "schedulePost")
+  // // If the schedule post is successful, end the graph.
+  // // .addEdge("humanNode", "schedulePost")
+  // // Always end after scheduling the post.
   .addEdge("schedulePost", END);
 
 export const generatePostGraph = generatePostBuilder.compile();

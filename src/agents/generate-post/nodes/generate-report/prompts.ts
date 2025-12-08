@@ -41,8 +41,6 @@ export const GENERATE_REPORT_PROMPT = `You are a highly regarded marketing emplo
 You have been tasked with writing a marketing report on content submitted to you from a third party which uses your products.
 This marketing report will then be used to craft Tweets and LinkedIn posts promoting the content and your products.
 
-${getPrompts().businessContext}
-
 The marketing report should follow the following structure guidelines. It will be made up of three main sections outlined below:
 <structure-guidelines>
 ${STRUCTURE_GUIDELINES}

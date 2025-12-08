@@ -19,7 +19,7 @@ export function parseGeneration(generation: string): string {
 }
 
 export function formatPrompt(report: string, relevantLinks: string[]): string {
-  return `Here is the report I wrote on the content I'd like promoted by LangChain:
+  return `Here is the report I wrote on the content I'd like promoted:
 <report>
 ${report}
 </report>

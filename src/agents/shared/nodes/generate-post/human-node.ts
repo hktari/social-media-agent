@@ -1,11 +1,7 @@
 import { END, LangGraphRunnableConfig, interrupt } from "@langchain/langgraph";
 import { BaseGeneratePostState, BaseGeneratePostUpdate } from "./types.js";
-import { formatInTimeZone } from "date-fns-tz";
 import { isTextOnly, processImageInput } from "../../../utils.js";
-import {
-  getNextSaturdayDate,
-  parseDateResponse,
-} from "../../../../utils/date.js";
+import { getInAMinuteDate, parseDateResponse } from "../../../../utils/date.js";
 import { routeResponse } from "../../../shared/nodes/route-response.js";
 import { saveUsedUrls } from "../../../shared/stores/post-subject-urls.js";
 import { HumanInterrupt, HumanResponse } from "@langchain/langgraph/prebuilt";
@@ -118,36 +114,22 @@ export async function humanNode<
   const isTextOnlyMode = isTextOnly(config);
 
   const unknownResponseDescription = getUnknownResponseDescription(state);
-  const defaultDate = state.scheduleDate || getNextSaturdayDate();
-  let defaultDateString = "";
-  if (
-    typeof state.scheduleDate === "string" &&
-    ["p1", "p2", "p3"].includes(state.scheduleDate)
-  ) {
-    defaultDateString = state.scheduleDate as string;
-  } else {
-    defaultDateString = formatInTimeZone(
-      defaultDate,
-      "America/Los_Angeles",
-      "MM/dd/yyyy hh:mm a z",
-    );
-  }
 
   const postArgs = state.complexPost
     ? {
-      main_post: state.complexPost.main_post,
-      reply_post: state.complexPost.reply_post,
-    }
+        main_post: state.complexPost.main_post,
+        reply_post: state.complexPost.reply_post,
+      }
     : {
-      post: state.post,
-    };
+        post: state.post,
+      };
 
   const interruptValue: HumanInterrupt = {
     action_request: {
       action: "Schedule Twitter/LinkedIn post",
       args: {
         ...postArgs,
-        date: defaultDateString,
+        date: undefined, // NOTE: disabled dates
         // Do not provide an image field if the mode is text only
         ...(!isTextOnlyMode && { image: state.image?.imageUrl ?? "" }),
       },
@@ -172,13 +154,9 @@ export async function humanNode<
   // Save ALL links used to generate this post so that they are not used to generate future posts (duplicates).
   await saveUsedUrls([...(state.relevantLinks ?? []), ...state.links], config);
 
-  console.log("INTERRUPT VALUE", JSON.stringify(interruptValue));
-
   const response = interrupt<HumanInterrupt[], HumanResponse[]>([
     interruptValue,
   ])[0];
-
-  console.log("RESPONSE", JSON.stringify(response));
 
   if (!["edit", "ignore", "accept", "response"].includes(response.type)) {
     throw new Error(
@@ -195,38 +173,16 @@ export async function humanNode<
       `Unexpected response args: ${response.args}. Must be defined.`,
     );
   }
+  console.log("HELLO?");
 
   if (response.type === "response") {
     if (typeof response.args !== "string") {
       throw new Error("Response args must be a string.");
     }
 
-    const { route } = await routeResponse({
-      post: state.post,
-      dateOrPriority: defaultDateString,
-      userResponse: response.args,
-    });
-
-    if (route === "rewrite_post") {
-      return {
-        userResponse: response.args,
-        next: "rewritePost",
-      } as Update;
-    } else if (route === "update_date") {
-      return {
-        userResponse: response.args,
-        next: "updateScheduleDate",
-      } as Update;
-    } else if (route === "rewrite_with_split_url") {
-      return {
-        userResponse: undefined,
-        next: "rewriteWithSplitUrl",
-      } as Update;
-    }
-
     return {
       userResponse: response.args,
-      next: "unknownResponse",
+      next: "schedulePost",
     } as Update;
   }
 
@@ -247,29 +203,15 @@ export async function humanNode<
   const complexPost =
     castArgs.main_post && castArgs.reply_post
       ? {
-        main_post: castArgs.main_post,
-        reply_post: castArgs.reply_post,
-      }
+          main_post: castArgs.main_post,
+          reply_post: castArgs.reply_post,
+        }
       : undefined;
   if (!post && !complexPost) {
     throw new Error(
       `Unexpected response args value: ${post}. Must be defined.\n\nResponse args:\n${JSON.stringify(response.args, null, 2)}`,
     );
   }
-
-  const postDateString = castArgs.date;
-  let postDate: DateType | undefined;
-  if (postDateString) {
-    postDate = parseDateResponse(postDateString);
-    if (!postDate) {
-      throw new Error(
-        "Invalid date provided.\n\n" +
-        "Expected format: 'MM/dd/yyyy hh:mm a z' or 'P1'/'P2'/'P3' or leave empty to post now.\n\n" +
-        `Received: '${postDateString}'`,
-      );
-    }
-  }
-
   let imageState: { imageUrl: string; mimeType: string } | undefined =
     undefined;
   if (!isTextOnlyMode) {
@@ -285,7 +227,6 @@ export async function humanNode<
 
   return {
     next: "schedulePost",
-    scheduleDate: postDate,
     ...(post ? { post } : {}),
     ...(complexPost ? { complexPost } : {}),
     // TODO: Update so if the mime type is blacklisted, it re-routes to human node with an error message.

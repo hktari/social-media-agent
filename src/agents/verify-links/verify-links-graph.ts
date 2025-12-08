@@ -2,6 +2,8 @@ import { END, Send, START, StateGraph } from "@langchain/langgraph";
 import { VerifyContentAnnotation } from "../shared/shared-state.js";
 import { verifyYouTubeContent } from "../shared/nodes/verify-youtube.js";
 import { verifyGeneralContent } from "../shared/nodes/verify-general.js";
+import { verifyGitHubContent } from "../shared/nodes/verify-github.js";
+
 import {
   VerifyLinksGraphAnnotation,
   VerifyLinksGraphConfigurableAnnotation,
@@ -18,7 +20,11 @@ function routeLinkTypes(state: typeof VerifyLinksGraphAnnotation.State) {
       });
     }
 
-
+    if (type === "github") {
+      return new Send("verifyGitHubContent", {
+        link,
+      });
+    }
 
     return new Send("verifyGeneralContent", {
       link,
@@ -36,9 +42,9 @@ const verifyLinksWorkflow = new StateGraph(
   .addNode("verifyGeneralContent", verifyGeneralContent, {
     input: VerifyContentAnnotation,
   })
-  // .addNode("verifyGitHubContent", verifyGitHubContent, {
-  //   input: VerifyContentAnnotation,
-  // })
+  .addNode("verifyGitHubContent", verifyGitHubContent, {
+    input: VerifyContentAnnotation,
+  })
   // .addNode("verifyTweetSubGraph", verifyTweetGraph, {
   //   input: VerifyContentAnnotation,
   // })
@@ -52,13 +58,14 @@ const verifyLinksWorkflow = new StateGraph(
   .addConditionalEdges(START, routeLinkTypes, [
     "verifyYouTubeContent",
     "verifyGeneralContent",
-    // "verifyGitHubContent",
+    "verifyGitHubContent",
     // "verifyTweetSubGraph",
     // "verifyRedditContent",
     // "verifyLumaEvent",
   ])
   .addEdge("verifyYouTubeContent", END)
-  .addEdge("verifyGeneralContent", END);
+  .addEdge("verifyGeneralContent", END)
+  .addEdge("verifyGitHubContent", END);
 
 export const verifyLinksGraph = verifyLinksWorkflow.compile();
 verifyLinksGraph.name = "Verify Links Subgraph";
